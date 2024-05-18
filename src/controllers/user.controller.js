@@ -7,33 +7,37 @@ import {ApiResponse} from '../utils/ApiResponse.js'
 
 const registerUser = asyncHandular( async (req, res,next) => {
     const  {userName, email, fullName, password} = req.body
-    console.log(userName)
 
     if ([userName, email, fullName, password].some((field) => {
         field?.trim() === ''
     })) {
         return new ApiError(400, "All fields are required")
     }
-    const existUser = User.findOne({$or: [{userName}, {email}]})
+    const existUser = await User.findOne({$or: [{userName}, {email}]})
     if (existUser) {
         throw new ApiError(409, 'User with email or username exist')
     }
 
-    const avatarLocatPath = req.file?.avatar[0]?.path
-    const coverImageLocatPath = req.file?.avatar[0]?.path
-
-    if(!avatarLocatPath){
-        throw new ApiError(400, 'Avatar is required')
+    const avatarLocatPath = req.files?.avatar?.[0]?.path;
+    let coverImageLocalPath;
+    if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
+        coverImageLocalPath = req.files.coverImage[0].path
     }
 
+
+
+    if (!avatarLocatPath) {
+        throw new ApiError(400, 'Avatar is required');
+      }
+
     const avatar = await uploadOnCloud(avatarLocatPath)
-    const coverImage = await uploadOnCloud(coverImageLocatPath) 
+    const coverImage = await uploadOnCloud(coverImageLocalPath) 
 
     if (!avatar) {
         throw new ApiError(400, 'Avatar is required')
     }
 
-    const user = User.create({
+    const user = await User.create({
         userName,
         avatar: avatar.url,
         coverImage: coverImage?.url || '',
